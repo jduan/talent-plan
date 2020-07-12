@@ -43,6 +43,7 @@ The difficulty of the project is divided into three levels: Very hard, Hard, and
 * Description: In many scenarios users want to ensure the downstream is replicated to a globally consistent state, as TiCDC supports eventual transaction consistency, and TiDB supports snapshot read, we could combine these two features and provide a snapshot level consistency replication strategy.
 * Recommended Skills: Go, Transaction.
 * Mentor(s): @amyangfei
+* Mentee: [@Colins110](https://github.com/Colins110)
 * Upstream Issue or RFC (URL): https://github.com/pingcap/ticdc/issues/658
 * Difficulty: Medium
 
@@ -52,6 +53,7 @@ The difficulty of the project is divided into three levels: Very hard, Hard, and
 * Description: Apache Kafka provides a flexible connectors mechanism, which is widely used in change data capture scenarios. We want to implement an Avro sink and make TiCDC compatible with the Kafka connector ecosystem.
 * Recommended Skills: Go, Kafka.
 * Mentor(s): @amyangfei, @liuzx
+* Mentee: [@qinggniq](https://github.com/qinggniq)
 * Upstream Issue or RFC (URL): https://github.com/pingcap/ticdc/issues/660
 * Difficulty: Medium
 
@@ -70,6 +72,7 @@ The difficulty of the project is divided into three levels: Very hard, Hard, and
 * Description: TiDB supports placement rules, but it can only be defined in configuration files. If there is an approach to configure placement rules through statements, usability can be improved. 
 * Recommended Skills: Go, Data Definition Language
 * Mentor(s): @djshow832
+* Mentee: [@xhe](https://github.com/xhebox)
 * Upstream Issue or RFC (URL): https://github.com/pingcap/tidb/issues/18030
 * Difficulty: Hard
 
@@ -94,14 +97,16 @@ The difficulty of the project is divided into three levels: Very hard, Hard, and
 * Description: When there're lots of tables in a TiDB cluster, caching all the stats data into a single TiDB server may cause a high memory consumption when the TiDB server bootstrapped. It increases the OOM risk of the TiDB server.
 * Recommended Skills: Go
 * Mentor(s): @SunRunAway
+* Mentee: @[miamiaoxyz](https://github.com/miamia0)
 * Upstream Issue or RFC (URL): https://github.com/pingcap/tidb/issues/16572
 * Difficulty: Medium
- 
+
 ##### Support utf8_unicode_ci/utf8mb4_unicode_ci collation
 
 * Description: Implement the utf8_unicode_ci/utf8mb4_unicode_ci collation algorithm and optimize them.
 * Recommended Skills: Go, C++, Rust
 * Mentor(s): @wjhuang2016
+* Mentee: @[xiongjiwei](https://github.com/xiongjiwei)
 * Upstream Issue or RFC (URL): https://github.com/pingcap/tidb/issues/17596
 * Difficulty: Medium
 
@@ -113,7 +118,7 @@ The difficulty of the project is divided into three levels: Very hard, Hard, and
 * Recommended Skills: Rust, Go,  Algorithm / Data Structure
 * Mentor(s): @breeswish @HundunDM
 * Upstream Issue or RFC (URL): https://github.com/pingcap-incubator/tidb-dashboard/issues/574
-* Difficulty: Medium
+* Difficulty: Hard
 
 ##### HBase protocol support on Zetta
 
@@ -123,6 +128,7 @@ The difficulty of the project is divided into three levels: Very hard, Hard, and
 	3. Implement HBase functionality on top of Zetta
 * Recommended Skills: Go, Java, HBase RPC
 * Mentor(s): pseudocodes, baiyuqing
+* Mentee: [@BowenXiao1999](https://github.com/BowenXiao1999)
 * Upstream Issue or RFC (URL): https://github.com/zhihu/zetta/issues/2（in Chinese）
 * Difficulty: Hard 
 
