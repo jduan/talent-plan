@@ -1,3 +1,4 @@
+use log::debug;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
@@ -17,7 +18,9 @@ pub struct KvPair {
 
 #[derive(Debug)]
 struct Offset {
+    // The offset where "key value" data starts.
     start: u64,
+    // Length of the data in bytes.
     len: usize,
 }
 
@@ -51,10 +54,10 @@ impl KvStore {
                 Ok(bytes) => {
                     if bytes == 4 {
                         let data_size = u32::from_le_bytes(size_buffer) as usize;
-                        println!("data_size: {}", data_size);
+                        debug!("data_size: {}", data_size);
                         let mut data_buffer: Vec<u8> = vec![0; data_size];
                         reader.read_exact(&mut data_buffer)?;
-                        println!("data: {:?}", data_buffer);
+                        debug!("data: {:?}", data_buffer);
                         let pair: KvPair = serde_json::from_slice(&data_buffer)?;
 
                         if pair.value.is_some() {
@@ -88,7 +91,7 @@ impl KvStore {
     }
 
     /// Set a key and append it to the end of the file.
-    pub fn set(&self, key: String, value: String) -> Result<()> {
+    pub fn set(&mut self, key: String, value: String) -> Result<()> {
         self.append(key, Some(value))
     }
 
@@ -108,7 +111,7 @@ impl KvStore {
     }
 
     /// Remove a key by adding a tombstone value!
-    pub fn remove(&self, key: String) -> Result<()> {
+    pub fn remove(&mut self, key: String) -> Result<()> {
         if self.offsets.get(&key).is_some() {
             self.append(key, None)
         } else {
@@ -116,7 +119,7 @@ impl KvStore {
         }
     }
 
-    fn append(&self, key: String, value: Option<String>) -> Result<()> {
+    fn append(&mut self, key: String, value: Option<String>) -> Result<()> {
         let pair = KvPair { key, value };
         let data = serde_json::to_string(&pair)?;
         let bytes = data.into_bytes();
@@ -126,8 +129,20 @@ impl KvStore {
             .create(true)
             .append(true)
             .open(&self.data_file)?;
+        let file_size = file.seek(SeekFrom::End(0))?;
         file.write_all(&u32::to_le_bytes(size as u32))?;
         file.write_all(&bytes)?;
+        file.flush()?;
+
+        let offset = Offset {
+            start: file_size + 4,
+            len: size,
+        };
+        if pair.value.is_some() {
+            self.offsets.insert(pair.key, offset);
+        } else {
+            self.offsets.remove(&pair.key);
+        }
 
         Ok(())
     }
