@@ -44,7 +44,9 @@ fn main() -> Result<()> {
         ("get", Some(matches)) => {
             let key = matches.value_of("KEY").expect("KEY argument missing");
 
-            let mut store = KvStore::open(current_dir()?)?;
+            let store = KvStore::open(current_dir()?)?;
+            println!("store: {:?}", store);
+            println!("getting key: {}!", key);
             if let Some(value) = store.get(key.to_string())? {
                 println!("{}", value);
             } else {
