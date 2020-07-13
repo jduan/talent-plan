@@ -4,14 +4,15 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::KvsError::{IoError, UnexpectedEOF};
+use crate::error::KvsError::{IoError, KeyNotFound, UnexpectedEOF};
 use crate::error::Result;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KvPair {
     key: String,
-    value: String,
+    // None means the key has been deleted!
+    value: Option<String>,
 }
 
 #[derive(Debug)]
@@ -56,13 +57,18 @@ impl KvStore {
                         println!("data: {:?}", data_buffer);
                         let pair: KvPair = serde_json::from_slice(&data_buffer)?;
 
-                        offsets.insert(
-                            pair.key,
-                            Offset {
-                                start: offset + 4,
-                                len: data_size,
-                            },
-                        );
+                        if pair.value.is_some() {
+                            offsets.insert(
+                                pair.key,
+                                Offset {
+                                    start: offset + 4,
+                                    len: data_size,
+                                },
+                            );
+                        } else {
+                            // the key is deleted
+                            offsets.remove(&pair.key);
+                        }
                         offset += 4 + data_size as u64;
                     } else if bytes == 0 {
                         // no more data
@@ -83,18 +89,7 @@ impl KvStore {
 
     /// Set a key and append it to the end of the file.
     pub fn set(&self, key: String, value: String) -> Result<()> {
-        let pair = KvPair { key, value };
-        let data = serde_json::to_string(&pair)?;
-        let bytes = data.into_bytes();
-        let size = bytes.len();
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(&self.data_file)?;
-        file.write_all(&u32::to_le_bytes(size as u32))?;
-        file.write_all(&bytes)?;
-
-        Ok(())
+        self.append(key, Some(value))
     }
 
     /// Retrieve the value of a key
@@ -106,14 +101,34 @@ impl KvStore {
                 let mut data_buffer: Vec<u8> = vec![0; offset.len];
                 file.read_exact(&mut data_buffer)?;
                 let pair: KvPair = serde_json::from_slice(&data_buffer)?;
-                Ok(Some(pair.value))
+                Ok(pair.value)
             }
             None => Ok(None),
         }
     }
 
-    /// Remove a key
+    /// Remove a key by adding a tombstone value!
     pub fn remove(&self, key: String) -> Result<()> {
-        todo!()
+        if self.offsets.get(&key).is_some() {
+            self.append(key, None)
+        } else {
+            Err(KeyNotFound)
+        }
+    }
+
+    fn append(&self, key: String, value: Option<String>) -> Result<()> {
+        let pair = KvPair { key, value };
+        let data = serde_json::to_string(&pair)?;
+        let bytes = data.into_bytes();
+        let size = bytes.len();
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(true)
+            .open(&self.data_file)?;
+        file.write_all(&u32::to_le_bytes(size as u32))?;
+        file.write_all(&bytes)?;
+
+        Ok(())
     }
 }
