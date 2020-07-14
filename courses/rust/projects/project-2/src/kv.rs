@@ -30,6 +30,8 @@ pub struct KvStore {
     data_file: PathBuf,
     // maps keys to their offsets in the file
     offsets: HashMap<String, Offset>,
+    // Number of operations. Compaction runs after every 1000 operations.
+    operations: u32,
 }
 
 impl KvStore {
@@ -42,43 +44,41 @@ impl KvStore {
             return Ok(KvStore {
                 data_file: buf,
                 offsets: HashMap::new(),
+                operations: 0,
             });
         }
         let f = File::open(&buf)?;
+        let md = std::fs::metadata(&buf)?;
+        let file_size = md.len();
+        debug!("file size: {:?}", md.len());
         let mut reader = BufReader::new(f);
         let mut size_buffer: [u8; 4] = [0; 4];
         let mut offset = 0;
         let mut offsets = HashMap::new();
-        loop {
-            match reader.read(&mut size_buffer) {
-                Ok(bytes) => {
-                    if bytes == 4 {
-                        let data_size = u32::from_le_bytes(size_buffer) as usize;
-                        debug!("data_size: {}", data_size);
-                        let mut data_buffer: Vec<u8> = vec![0; data_size];
-                        reader.read_exact(&mut data_buffer)?;
-                        debug!("data: {:?}", data_buffer);
-                        let pair: KvPair = serde_json::from_slice(&data_buffer)?;
 
-                        if pair.value.is_some() {
-                            offsets.insert(
-                                pair.key,
-                                Offset {
-                                    start: offset + 4,
-                                    len: data_size,
-                                },
-                            );
-                        } else {
-                            // the key is deleted
-                            offsets.remove(&pair.key);
-                        }
-                        offset += 4 + data_size as u64;
-                    } else if bytes == 0 {
-                        // no more data
-                        break;
+        while offset < file_size {
+            match reader.read_exact(&mut size_buffer) {
+                Ok(_) => {
+                    let data_size = u32::from_le_bytes(size_buffer) as usize;
+                    debug!("data_size: {}", data_size);
+                    let mut data_buffer: Vec<u8> = vec![0; data_size];
+                    reader.read_exact(&mut data_buffer)?;
+                    debug!("data: {:?}", data_buffer);
+                    let pair: KvPair = serde_json::from_slice(&data_buffer)?;
+
+                    if pair.value.is_some() {
+                        offsets.insert(
+                            pair.key,
+                            Offset {
+                                start: offset + 4,
+                                len: data_size,
+                            },
+                        );
                     } else {
-                        return Err(UnexpectedEOF);
+                        // the key is deleted
+                        offsets.remove(&pair.key);
                     }
+                    offset += 4 + data_size as u64;
                 }
                 Err(err) => return Err(IoError(err)),
             }
@@ -87,6 +87,7 @@ impl KvStore {
         Ok(KvStore {
             data_file: buf,
             offsets,
+            operations: 0,
         })
     }
 
@@ -143,6 +144,34 @@ impl KvStore {
         } else {
             self.offsets.remove(&pair.key);
         }
+
+        self.operations += 1;
+        if self.operations > 10_000 {
+            self.compaction()?;
+            self.operations = 0;
+        }
+
+        Ok(())
+    }
+
+    /// Create a new file, write the compacted key-value pairs to it, and move it to override the
+    /// existing data file.
+    fn compaction(&mut self) -> Result<()> {
+        debug!("Running compaction");
+        let mut input = File::open(&self.data_file)?;
+        let mut output = tempfile::NamedTempFile::new()?;
+
+        for (_key, offset) in &self.offsets {
+            input.seek(SeekFrom::Start(offset.start))?;
+            let mut data_buffer: Vec<u8> = vec![0; offset.len];
+            input.read_exact(&mut data_buffer)?;
+
+            output.write_all(&u32::to_le_bytes(offset.len as u32))?;
+            output.write_all(&data_buffer)?;
+        }
+        output.flush()?;
+
+        std::fs::rename(output, &self.data_file)?;
 
         Ok(())
     }

@@ -264,23 +264,35 @@ fn compaction() -> Result<()> {
     let dir_size = || {
         let entries = WalkDir::new(temp_dir.path()).into_iter();
         let len: walkdir::Result<u64> = entries
+            .filter(|res| match res {
+                Ok(entry) => entry.file_type().is_file(),
+                Err(err) => false,
+            })
             .map(|res| {
-                res.and_then(|entry| entry.metadata())
-                    .map(|metadata| metadata.len())
+                res.and_then(|entry| {
+                    println!("entry: {:?}", entry.path());
+                    entry.metadata()
+                })
+                .map(|metadata| metadata.len())
             })
             .sum();
         len.expect("fail to get directory size")
     };
 
     let mut current_size = dir_size();
-    for iter in 0..1000 {
-        for key_id in 0..1000 {
+    let iterations = 1000;
+    for iter in 0..iterations {
+        for key_id in 0..iterations {
             let key = format!("key{}", key_id);
             let value = format!("{}", iter);
             store.set(key, value)?;
         }
 
         let new_size = dir_size();
+        println!(
+            "iteration: {}, current_size: {}, new_size: {}",
+            iter, current_size, new_size
+        );
         if new_size > current_size {
             current_size = new_size;
             continue;
@@ -289,8 +301,10 @@ fn compaction() -> Result<()> {
 
         drop(store);
         // reopen and check content.
+        println!("Compaction triggered. Going to check the compacted data.");
+        // TODO: debug why this gets UnexpectedEOF
         let mut store = KvStore::open(temp_dir.path())?;
-        for key_id in 0..1000 {
+        for key_id in 0..iterations {
             let key = format!("key{}", key_id);
             assert_eq!(store.get(key)?, Some(format!("{}", iter)));
         }
