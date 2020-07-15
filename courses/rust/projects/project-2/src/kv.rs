@@ -1,13 +1,13 @@
-use log::debug;
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
+use log::debug;
 use serde::{Deserialize, Serialize};
 
-use crate::error::KvsError::{IoError, KeyNotFound, UnexpectedEOF};
+use crate::error::KvsError::{IoError, KeyNotFound};
 use crate::error::Result;
-use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KvPair {
@@ -161,7 +161,7 @@ impl KvStore {
         let mut input = File::open(&self.data_file)?;
         let mut output = tempfile::NamedTempFile::new()?;
 
-        for (_key, offset) in &self.offsets {
+        for offset in self.offsets.values() {
             input.seek(SeekFrom::Start(offset.start))?;
             let mut data_buffer: Vec<u8> = vec![0; offset.len];
             input.read_exact(&mut data_buffer)?;

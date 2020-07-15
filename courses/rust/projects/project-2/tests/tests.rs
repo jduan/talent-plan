@@ -191,7 +191,7 @@ fn get_stored_value() -> Result<()> {
 
     // Open from disk again and check persistent data.
     drop(store);
-    let mut store = KvStore::open(temp_dir.path())?;
+    let store = KvStore::open(temp_dir.path())?;
     assert_eq!(store.get("key1".to_owned())?, Some("value1".to_owned()));
     assert_eq!(store.get("key2".to_owned())?, Some("value2".to_owned()));
 
@@ -230,7 +230,7 @@ fn get_non_existent_value() -> Result<()> {
 
     // Open from disk again and check persistent data.
     drop(store);
-    let mut store = KvStore::open(temp_dir.path())?;
+    let store = KvStore::open(temp_dir.path())?;
     assert_eq!(store.get("key2".to_owned())?, None);
 
     Ok(())
@@ -266,7 +266,7 @@ fn compaction() -> Result<()> {
         let len: walkdir::Result<u64> = entries
             .filter(|res| match res {
                 Ok(entry) => entry.file_type().is_file(),
-                Err(err) => false,
+                Err(_err) => false,
             })
             .map(|res| {
                 res.and_then(|entry| {
@@ -302,8 +302,7 @@ fn compaction() -> Result<()> {
         drop(store);
         // reopen and check content.
         println!("Compaction triggered. Going to check the compacted data.");
-        // TODO: debug why this gets UnexpectedEOF
-        let mut store = KvStore::open(temp_dir.path())?;
+        let store = KvStore::open(temp_dir.path())?;
         for key_id in 0..iterations {
             let key = format!("key{}", key_id);
             assert_eq!(store.get(key)?, Some(format!("{}", iter)));
